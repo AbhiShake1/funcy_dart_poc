@@ -1,12 +1,22 @@
+// void main() {
+//   final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(({int? ageNum, name, salary}) {
+//     print('$name, $ageNum, $salary');
+//   });
+//   print(person('name'));
+//   print(person.toJson());
+// }
+//
+// void PersonModel({required String name, int ageNum = 18}) {}
+
 void main() {
-  final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(({int? ageNum}) {
-    print('\$name, $ageNum, \$salary');
-  });
+  final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(PersonModel);
   print(person('name'));
   print(person.toJson());
 }
 
-void PersonModel({required String name, int ageNum = 18}) {}
+void PersonModel({required String name, int ageNum = 18}) {
+  print('$name');
+}
 
 // abstract class Models {
 //   static void PersonModel({required String name, int age = 18});
@@ -89,13 +99,15 @@ class KhaltiSchema {
 
     final finalParams = Map.fromEntries(filledParams.entries.map((entry) {
       final keyString = entry.key.toString().substring(8, entry.key.toString().length - 2);
-      final camelCaseKey = Symbol(keyString.split('_').map((part) => part[0].toUpperCase() + part.substring(1)).join('').substring(0, 1).toLowerCase() + keyString.split('_').map((part) => part[0].toUpperCase() + part.substring(1)).join('').substring(1));
+      final camelCaseKey = Symbol(
+          keyString.split('_').map((part) => part[0].toUpperCase() + part.substring(1)).join('').substring(0, 1).toLowerCase() +
+              keyString.split('_').map((part) => part[0].toUpperCase() + part.substring(1)).join('').substring(1));
       return MapEntry(camelCaseKey, entry.value);
     }));
 
-    try{
+    try {
       Function.apply(function, [], finalParams);
-    }catch(_){
+    } catch (_) {
       Function.apply(function, [], filledParams);
     }
 
