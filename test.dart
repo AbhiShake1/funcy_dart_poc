@@ -9,7 +9,10 @@
 // void PersonModel({required String name, int ageNum = 18}) {}
 
 void main() {
-  final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(PersonModel);
+  final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(PersonModel).ifCondition(
+        (schema) => schema('name') != 'abhi',
+        then: PersonModel,
+      );
   print(person('name'));
   print(person.toJson());
 }
@@ -23,10 +26,10 @@ void PersonModel({required String name, int ageNum = 18}) {
 // }
 
 class KhaltiSchema {
-  final Map<String, dynamic> schema;
+  final Map<String, dynamic> _schema;
   final Map<String, dynamic> _json;
 
-  const KhaltiSchema(this._json, this.schema);
+  const KhaltiSchema(this._json, this._schema);
 
   factory KhaltiSchema.fromJson(Function schema, Map<String, dynamic> json) {
     return KhaltiSchema(json, _fillFunctionParams(schema, json));
@@ -50,17 +53,17 @@ class KhaltiSchema {
   KhaltiSchema copyWith([Map<String, dynamic>? json]) {
     if (json == null) return this;
     final newJson = _mergeMaps(_json, json);
-    return KhaltiSchema(newJson, schema);
+    return KhaltiSchema(newJson, _schema);
   }
 
   KhaltiSchema then(Function function) {
-    _fillFunctionParams(function, schema);
+    _fillFunctionParams(function, _schema);
     return this;
   }
 
-  KhaltiSchema ifCondition(bool Function(Map<String, dynamic> json) predicate) {
-    if (predicate(_json)) {
-      return KhaltiSchema(_json, schema);
+  KhaltiSchema ifCondition(bool Function(KhaltiSchema schema) predicate, {required Function then}) {
+    if (predicate(this)) {
+      _fillFunctionParams(then, _schema);
     }
     return this;
   }
