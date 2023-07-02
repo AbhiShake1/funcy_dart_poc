@@ -10,9 +10,11 @@
 
 void main() {
   final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(PersonModel).ifCondition(
-        (schema) => schema('name') != 'abhi',
+        ({String? name}) => true,
         then: PersonModel,
       );
+  final res = person.thenReturn(({String? name}) => name == 'abhi');
+  print('abhi::$res}');
   print(person('name'));
   print(person.toJson());
 }
@@ -61,8 +63,12 @@ class KhaltiSchema {
     return this;
   }
 
-  KhaltiSchema ifCondition(bool Function(KhaltiSchema schema) predicate, {required Function then}) {
-    if (predicate(this)) {
+  thenReturn(Function function) {
+    return _fillFunctionParamsAny(function, _schema);
+  }
+
+  KhaltiSchema ifCondition(Function predicate, {required Function then}) {
+    if (_fillFunctionParamsBool(predicate, _schema)) {
       _fillFunctionParams(then, _schema);
     }
     return this;
@@ -80,7 +86,26 @@ class KhaltiSchema {
     return mergedMap;
   }
 
+  static bool _fillFunctionParamsBool(Function function, Map<String, dynamic> params) {
+    return _fillFunctionParamsAny(function, params);
+  }
+
+  static dynamic _fillFunctionParamsAny(Function function, Map<String, dynamic> params) {
+    final filledParams = _fillFunctionParamsRaw(function, params);
+    try {
+      return Function.apply(function, [], filledParams.camelCaseParams);
+    } catch (_) {
+      try {
+        return Function.apply(function, [], filledParams.filledParams);
+      } catch (_) {}
+    }
+  }
+
   static Map<String, dynamic> _fillFunctionParams(Function function, Map<String, dynamic> params) {
+    return _fillFunctionParamsRaw(function, params).params;
+  }
+
+  static _Params _fillFunctionParamsRaw(Function function, Map<String, dynamic> params) {
     final functionParams = RegExp(r'\((.*?)\)').firstMatch(function.toString())!.group(1)!;
     final paramList = functionParams.replaceAll('}', '').replaceAll('{', '').split(',').map(_toSnakeCase);
 
@@ -100,7 +125,7 @@ class KhaltiSchema {
       }
     }
 
-    final finalParams = Map.fromEntries(filledParams.entries.map((entry) {
+    final camelCaseParams = Map.fromEntries(filledParams.entries.map((entry) {
       final keyString = entry.key.toString().substring(8, entry.key.toString().length - 2);
       final camelCaseKey = Symbol(
           keyString.split('_').map((part) => part[0].toUpperCase() + part.substring(1)).join('').substring(0, 1).toLowerCase() +
@@ -108,13 +133,12 @@ class KhaltiSchema {
       return MapEntry(camelCaseKey, entry.value);
     }));
 
-    try {
-      Function.apply(function, [], finalParams);
-    } catch (_) {
-      Function.apply(function, [], filledParams);
-    }
-
-    return params;
+    return _Params(
+      camelCaseParams: camelCaseParams,
+      filledParams: filledParams,
+      params: params,
+      function: function,
+    );
   }
 
   static String _toSnakeCase(String str) {
@@ -124,6 +148,20 @@ class KhaltiSchema {
   String _convertToModifiedConvention(String key) {
     return key.replaceAllMapped(RegExp(r'([A-Z])'), (match) => '_${match.group(1)?.toLowerCase()}');
   }
+}
+
+class _Params {
+  _Params({
+    required this.function,
+    required this.params,
+    required this.filledParams,
+    required this.camelCaseParams,
+  });
+
+  final Function function;
+  final Map<String, dynamic> params;
+  final Map<Symbol, dynamic> filledParams;
+  final Map<Symbol, dynamic> camelCaseParams;
 }
 
 extension KhaltiSchemaX on Function {
