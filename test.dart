@@ -1,9 +1,12 @@
 import 'dart:mirrors';
 
 class PersonModel extends KhaltiModel {
+  late String idx;
   late String name;
   late int ageNum = 18;
   late int salary;
+
+  String get primaryKey => idx;
 }
 
 void main() {
@@ -16,7 +19,7 @@ void main() {
   //       ({String? name}) => name == 'abhi',
   //       then: PersonModel,
   //     );
-  final res = person.thenReturn<PersonModel, int?>((model) => model.ageNum);
+  final res = person.thenReturn((model) => model.ageNum);
   print('age $res');
   // print(person('name'));
   print(person.toJson());
@@ -61,8 +64,8 @@ class KhaltiSchema<T extends KhaltiModel> {
     return this;
   }
 
-  M thenReturn<T extends KhaltiModel, M>(M Function(T) schema) {
-    return schema(_model as T);
+  M thenReturn<M>(M Function(T) schema) {
+    return schema(_model);
   }
 
   KhaltiSchema ifCondition<T extends KhaltiModel>(bool Function(T) predicate, {required T then}) {
@@ -115,9 +118,7 @@ class KhaltiSchema<T extends KhaltiModel> {
       }
     });
 
-    // final functionParams = RegExp(r'\((.*?)\)').firstMatch(function.toString())!.group(1)!;
     final paramList = _getClassFields<T>();
-    // final paramList = functionParams.replaceAll('}', '').replaceAll('{', '').split(',').map(_toSnakeCase);
 
     final filledParams = <Symbol, dynamic>{};
     for (final param in paramList) {
