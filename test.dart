@@ -11,10 +11,10 @@ class PersonModel extends KhaltiModel {
 
 void main() {
   final person = PersonModel().fromJson({'name': 'abhi2', 'grade_count': 21, 'salary': 30000, 'idx': 'idx1'}).then((model) {
-    print(model.name);
-  });
+    // print(model.name);
+  }).copyWith((p0) => p0..name = 'abhi3');
   final newPerson = person.copyWith((model) {
-    return model..name = 'abhi';
+    return model..name = 'abhi4';
   });
   //     .then<PersonModel>((model) {
   //   // print(model.salary);
@@ -28,8 +28,8 @@ void main() {
   // print('age $res');
   // print(person('name'));
   print(person.copyWith((model) => model));
-  print(person('name'));
-  print(newPerson('name'));
+  print('person: ${person('name')}');
+  print('person2: ${newPerson('name')}');
 }
 
 abstract class KhaltiModel {
