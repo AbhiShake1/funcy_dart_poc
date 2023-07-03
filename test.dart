@@ -1,16 +1,21 @@
 import 'dart:mirrors';
 
 class PersonModel extends KhaltiModel {
-  late final String idx;
-  late final String name;
-  late final int ageNum = 18;
-  late final int salary;
+  late String idx;
+  late String name;
+  late int gradeCount = 30;
+  late int salary;
 
   String get primaryKey => idx;
 }
 
 void main() {
-  final person = PersonModel().fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000, 'idx': 'idx1'}).then(print);
+  final person = PersonModel().fromJson({'name': 'abhi2', 'grade_count': 21, 'salary': 30000, 'idx': 'idx1'}).then((model) {
+    print(model.name);
+  });
+  final newPerson = person.copyWith((model) {
+    return model..name = 'abhi';
+  });
   //     .then<PersonModel>((model) {
   //   // print(model.salary);
   //   return model;
@@ -22,10 +27,29 @@ void main() {
   // final res = person.thenReturn((model) => model.ageNum);
   // print('age $res');
   // print(person('name'));
-  print(person.toJson());
+  print(person.copyWith((model) => model));
+  print(person('name'));
+  print(newPerson('name'));
 }
 
 abstract class KhaltiModel {
+  Map<String, dynamic> toJson() {
+    final classMirror = reflectClass(runtimeType);
+    final instanceMirror = reflect(this);
+
+    final json = <String, dynamic>{};
+
+    classMirror.declarations.forEach((symbol, declarationMirror) {
+      if (declarationMirror is VariableMirror && !declarationMirror.isStatic) {
+        final field = MirrorSystem.getName(symbol);
+        final value = instanceMirror.getField(symbol).reflectee;
+        json[field] = value;
+      }
+    });
+
+    return json;
+  }
+
   @override
   String toString() {
     final mirror = reflect(this);
@@ -44,6 +68,25 @@ abstract class KhaltiModel {
     final result = buffer.toString().trimRight().replaceFirst(RegExp(r',\s*$'), '');
 
     return '$className($result)';
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.isSetter) {
+      final fieldName = MirrorSystem.getName(invocation.memberName);
+      final setterName = 'set$fieldName';
+
+      final setterSymbol = Symbol(setterName);
+      final setterMirror = reflect(this).type.instanceMembers[setterSymbol];
+
+      if (setterMirror != null) {
+        final positionalArgs = [invocation.positionalArguments.first];
+        final namedArgs = invocation.namedArguments;
+        return reflect(this).invoke(setterMirror.simpleName, positionalArgs, namedArgs).reflectee;
+      }
+    }
+
+    return super.noSuchMethod(invocation);
   }
 }
 
@@ -73,13 +116,19 @@ class KhaltiSchema<T extends KhaltiModel> {
 
   dynamic operator [](String key) => (key);
 
-  KhaltiSchema copyWith([Map<String, dynamic>? json]) {
-    if (json == null) return this;
-    final newJson = _mergeMaps(_json, json);
-    return KhaltiSchema(newJson, _model);
+  KhaltiSchema<T> copyWith(T Function(T) schema) {
+    final model = schema(_model);
+    return KhaltiSchema(model.toJson(), model);
   }
 
-  KhaltiSchema then(void Function(T) schema) {
+  // KhaltiSchema copyWith(T Function(T) modify) {
+  //   modify(_model);
+  //   return this;
+  //   final newModel = modify(_model);
+  //   return KhaltiSchema(_json, newModel);
+  // }
+
+  KhaltiSchema<T> then(void Function(T) schema) {
     schema(_model);
     return this;
   }
