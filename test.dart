@@ -1,40 +1,38 @@
-// void main() {
-//   final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(({int? ageNum, name, salary}) {
-//     print('$name, $ageNum, $salary');
-//   });
-//   print(person('name'));
-//   print(person.toJson());
-// }
-//
-// void PersonModel({required String name, int ageNum = 18}) {}
+import 'dart:mirrors';
+
+class PersonModel extends KhaltiModel {
+  late String name;
+  late int ageNum = 18;
+  late int salary;
+}
 
 void main() {
-  final person = PersonModel.fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(PersonModel).ifCondition(
-        ({String? name}) => true,
-        then: PersonModel,
-      );
-  final res = person.thenReturn(({String? name}) => name == 'abhi');
-  print('abhi::$res}');
-  print(person('name'));
+  final person = PersonModel().fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000});
+  //     .then<PersonModel>((model) {
+  //   // print(model.salary);
+  //   return model;
+  // });
+  //     .then(PersonModel).ifCondition(
+  //       ({String? name}) => name == 'abhi',
+  //       then: PersonModel,
+  //     );
+  final res = person.thenReturn<PersonModel, int?>((model) => model.ageNum);
+  print('age $res');
+  // print(person('name'));
   print(person.toJson());
 }
 
-void PersonModel({required String name, int ageNum = 18}) {
-  print('$name');
-}
+abstract class KhaltiModel {}
 
-// abstract class Models {
-//   static void PersonModel({required String name, int age = 18});
-// }
-
-class KhaltiSchema {
-  final Map<String, dynamic> _schema;
+class KhaltiSchema<T extends KhaltiModel> {
+  // final Map<String, dynamic> _schema;
   final Map<String, dynamic> _json;
+  final T _model;
 
-  const KhaltiSchema(this._json, this._schema);
+  const KhaltiSchema(this._json, this._model);
 
-  factory KhaltiSchema.fromJson(Function schema, Map<String, dynamic> json) {
-    return KhaltiSchema(json, _fillFunctionParams(schema, json));
+  factory KhaltiSchema.fromJson(T schema, Map<String, dynamic> json) {
+    return KhaltiSchema(json, _fillFunctionParams(schema, json) as T);
   }
 
   Map<String, dynamic> toJson() => _json;
@@ -48,29 +46,29 @@ class KhaltiSchema {
     return toJson() == other.toJson();
   }
 
-  dynamic call(String key) => _json[_convertToModifiedConvention(key)];
+  dynamic call(String key) => _json[_toSnakeCase(key)];
 
   dynamic operator [](String key) => (key);
 
   KhaltiSchema copyWith([Map<String, dynamic>? json]) {
     if (json == null) return this;
     final newJson = _mergeMaps(_json, json);
-    return KhaltiSchema(newJson, _schema);
+    return KhaltiSchema(newJson, _model);
   }
 
-  KhaltiSchema then(Function function) {
-    _fillFunctionParams(function, _schema);
+  KhaltiSchema then<T extends KhaltiModel>(T Function(T) schema) {
+    _fillFunctionParams<T>(schema(_model as T), _json);
     return this;
   }
 
-  thenReturn(Function function) {
-    return _fillFunctionParamsAny(function, _schema);
+  M thenReturn<T extends KhaltiModel, M>(M Function(T) schema) {
+    return schema(_model as T);
   }
 
-  KhaltiSchema ifCondition(Function predicate, {required Function then}) {
-    if (_fillFunctionParamsBool(predicate, _schema)) {
-      _fillFunctionParams(then, _schema);
-    }
+  KhaltiSchema ifCondition<T extends KhaltiModel>(bool Function(T) predicate, {required T then}) {
+    // if (_fillFunctionParamsBool<T>(predicate, _model)) {
+    //   _fillFunctionParams(then, _model);
+    // }
     return this;
   }
 
@@ -86,28 +84,40 @@ class KhaltiSchema {
     return mergedMap;
   }
 
-  static bool _fillFunctionParamsBool(Function function, Map<String, dynamic> params) {
-    return _fillFunctionParamsAny(function, params);
+  // static bool _fillFunctionParamsBool<T extends KhaltiModel>(T Function(T) schema, Map<String, dynamic> params) {
+  //   return _fillFunctionParamsAny(schema, params);
+  // }
+
+  static KhaltiModel _fillFunctionParamsAny<T extends KhaltiModel, M>(T schema, Map<String, dynamic> params) {
+    final filledParams = _fillFunctionParamsRaw<T>(schema, params);
+    return filledParams.schema;
+    // try {
+    //   return Function.apply(schema, [], filledParams.camelCaseParams);
+    // } catch (_) {
+    //   try {
+    //     return Function.apply(schema, [], filledParams.filledParams);
+    //   } catch (_) {}
+    // }
   }
 
-  static dynamic _fillFunctionParamsAny(Function function, Map<String, dynamic> params) {
-    final filledParams = _fillFunctionParamsRaw(function, params);
-    try {
-      return Function.apply(function, [], filledParams.camelCaseParams);
-    } catch (_) {
-      try {
-        return Function.apply(function, [], filledParams.filledParams);
-      } catch (_) {}
-    }
+  static KhaltiModel _fillFunctionParams<T extends KhaltiModel>(T schema, Map<String, dynamic> params) {
+    return _fillFunctionParamsRaw(schema, params).schema;
   }
 
-  static Map<String, dynamic> _fillFunctionParams(Function function, Map<String, dynamic> params) {
-    return _fillFunctionParamsRaw(function, params).params;
-  }
+  static _Params _fillFunctionParamsRaw<T extends KhaltiModel>(T schema, Map<String, dynamic> params) {
+    final instanceMirror = reflect(schema);
+    final classMirror = instanceMirror.type;
 
-  static _Params _fillFunctionParamsRaw(Function function, Map<String, dynamic> params) {
-    final functionParams = RegExp(r'\((.*?)\)').firstMatch(function.toString())!.group(1)!;
-    final paramList = functionParams.replaceAll('}', '').replaceAll('{', '').split(',').map(_toSnakeCase);
+    params.forEach((key, value) {
+      final fieldName = Symbol(_toCamelCase(key));
+      if (classMirror.declarations.containsKey(fieldName)) {
+        instanceMirror.setField(fieldName, value);
+      }
+    });
+
+    // final functionParams = RegExp(r'\((.*?)\)').firstMatch(function.toString())!.group(1)!;
+    final paramList = _getClassFields<T>();
+    // final paramList = functionParams.replaceAll('}', '').replaceAll('{', '').split(',').map(_toSnakeCase);
 
     final filledParams = <Symbol, dynamic>{};
     for (final param in paramList) {
@@ -137,35 +147,48 @@ class KhaltiSchema {
       camelCaseParams: camelCaseParams,
       filledParams: filledParams,
       params: params,
-      function: function,
+      schema: schema,
     );
+  }
+
+  static List<String> _getClassFields<T extends KhaltiModel>() {
+    ClassMirror classMirror = reflectClass(T);
+    List<String> fields = [];
+
+    classMirror.declarations.forEach((symbol, declarationMirror) {
+      if (declarationMirror is VariableMirror && !declarationMirror.isStatic) {
+        fields.add(Symbol(symbol.toString()).toString().substring(8));
+      }
+    });
+
+    return fields;
   }
 
   static String _toSnakeCase(String str) {
     return str.replaceAllMapped(RegExp('([A-Z])'), (match) => '_${match.group(1)!.toLowerCase()}');
   }
 
-  String _convertToModifiedConvention(String key) {
-    return key.replaceAllMapped(RegExp(r'([A-Z])'), (match) => '_${match.group(1)?.toLowerCase()}');
+  static String _toCamelCase(String str) {
+    return str.replaceAllMapped(RegExp('_([a-z])'), (match) => match.group(1)!.toUpperCase());
   }
 }
 
-class _Params {
+class _Params<T extends KhaltiModel> {
   _Params({
-    required this.function,
+    required this.schema,
     required this.params,
     required this.filledParams,
     required this.camelCaseParams,
   });
 
-  final Function function;
+  final T schema;
   final Map<String, dynamic> params;
   final Map<Symbol, dynamic> filledParams;
   final Map<Symbol, dynamic> camelCaseParams;
 }
 
-extension KhaltiSchemaX on Function {
-  KhaltiSchema fromJson(Map<String, dynamic> json) {
+extension KhaltiSchemaX<T extends KhaltiModel> on T {
+  KhaltiSchema<T> fromJson(Map<String, dynamic> json) {
     return KhaltiSchema.fromJson(this, json);
   }
 }
