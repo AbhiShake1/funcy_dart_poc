@@ -1,16 +1,16 @@
 import 'dart:mirrors';
 
 class PersonModel extends KhaltiModel {
-  late String idx;
-  late String name;
-  late int ageNum = 18;
-  late int salary;
+  late final String idx;
+  late final String name;
+  late final int ageNum = 18;
+  late final int salary;
 
   String get primaryKey => idx;
 }
 
 void main() {
-  final person = PersonModel().fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(print);
+  final person = PersonModel().fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000, 'idx': 'idx1'}).then(print);
   //     .then<PersonModel>((model) {
   //   // print(model.salary);
   //   return model;
@@ -25,7 +25,27 @@ void main() {
   print(person.toJson());
 }
 
-abstract class KhaltiModel {}
+abstract class KhaltiModel {
+  @override
+  String toString() {
+    final mirror = reflect(this);
+    final classMirror = mirror.type;
+    final className = MirrorSystem.getName(classMirror.simpleName);
+
+    final buffer = StringBuffer();
+
+    classMirror.declarations.values.whereType<VariableMirror>().forEach((variable) {
+      final variableName = MirrorSystem.getName(variable.simpleName);
+      final variableValue = mirror.getField(variable.simpleName).reflectee;
+
+      buffer.write('$variableName: $variableValue, ');
+    });
+
+    final result = buffer.toString().trimRight().replaceFirst(RegExp(r',\s*$'), '');
+
+    return '$className($result)';
+  }
+}
 
 class KhaltiSchema<T extends KhaltiModel> {
   // final Map<String, dynamic> _schema;
