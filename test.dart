@@ -10,7 +10,7 @@ class PersonModel extends KhaltiModel {
 }
 
 void main() {
-  final person = PersonModel().fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000});
+  final person = PersonModel().fromJson({'name': 'abhi2', 'age_num': 21, 'salary': 30000}).then(print);
   //     .then<PersonModel>((model) {
   //   // print(model.salary);
   //   return model;
@@ -19,8 +19,8 @@ void main() {
   //       ({String? name}) => name == 'abhi',
   //       then: PersonModel,
   //     );
-  final res = person.thenReturn((model) => model.ageNum);
-  print('age $res');
+  // final res = person.thenReturn((model) => model.ageNum);
+  // print('age $res');
   // print(person('name'));
   print(person.toJson());
 }
@@ -59,8 +59,8 @@ class KhaltiSchema<T extends KhaltiModel> {
     return KhaltiSchema(newJson, _model);
   }
 
-  KhaltiSchema then<T extends KhaltiModel>(T Function(T) schema) {
-    _fillFunctionParams<T>(schema(_model as T), _json);
+  KhaltiSchema then(void Function(T) schema) {
+    schema(_model);
     return this;
   }
 
@@ -101,6 +101,10 @@ class KhaltiSchema<T extends KhaltiModel> {
     //     return Function.apply(schema, [], filledParams.filledParams);
     //   } catch (_) {}
     // }
+  }
+
+  static void _fillFunctionParamsVoid<T extends KhaltiModel>(T schema, Map<String, dynamic> params) {
+    _fillFunctionParamsRaw(schema, params);
   }
 
   static KhaltiModel _fillFunctionParams<T extends KhaltiModel>(T schema, Map<String, dynamic> params) {
